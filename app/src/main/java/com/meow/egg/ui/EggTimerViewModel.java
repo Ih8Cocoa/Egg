@@ -2,6 +2,7 @@ package com.meow.egg.ui;
 
 import android.app.AlarmManager;
 import android.app.Application;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -11,12 +12,14 @@ import android.os.SystemClock;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.AlarmManagerCompat;
+import androidx.core.content.ContextCompat;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.meow.egg.R;
 import com.meow.egg.receivers.AlarmReceiver;
+import com.meow.egg.utils.NotificationUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +37,7 @@ public final class EggTimerViewModel extends AndroidViewModel {
     private static final long MINUTE = 60000, SECOND = 1000;
 
     // pending initializations
+    private final Application app;
     private final int[] timerLengthOptions;
     private final PendingIntent notifyPendingIntent;
     private SharedPreferences prefs;
@@ -45,8 +49,9 @@ public final class EggTimerViewModel extends AndroidViewModel {
     // store disposables for cleanup
     private final List<Disposable> disposables = new ArrayList<>();
 
-    public EggTimerViewModel(@NonNull Application app) {
-        super(app);
+    public EggTimerViewModel(@NonNull Application application) {
+        super(application);
+        this.app = application;
 
         // setup
         notifyIntent = new Intent(app, AlarmReceiver.class);
@@ -131,6 +136,15 @@ public final class EggTimerViewModel extends AndroidViewModel {
                 selectedInterval = timerLengthOptions[selectedTimerLength] * MINUTE;
             }
             final long triggerTime = SystemClock.elapsedRealtime() + selectedInterval;
+
+            // Clear all notifications before setting alarm
+            final NotificationManager manager = ContextCompat.getSystemService(
+                    app, NotificationManager.class
+            );
+            if (manager != null) {
+                manager.cancelAll();
+            }
+
             // after we have the time, set the alarm
             AlarmManagerCompat.setExactAndAllowWhileIdle(
                     alarmManager, AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerTime, notifyPendingIntent
